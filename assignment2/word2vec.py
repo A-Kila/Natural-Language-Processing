@@ -19,6 +19,8 @@ def sigmoid(x):
 
     ### YOUR CODE HERE (~1 Line)
 
+    s = 1 / (1 + np.exp(-x))
+
     ### END YOUR CODE
 
     return s
@@ -64,6 +66,14 @@ def naiveSoftmaxLossAndGradient(
     ### Please use the provided softmax function (imported earlier in this file)
     ### This numerically stable implementation helps you avoid issues pertaining
     ### to integer overflow. 
+
+    yHat = softmax(np.dot(outsideVectors, centerWordVec))
+    loss = -np.log(yHat[outsideWordIdx])
+
+    gradCenterVec = np.dot(outsideVectors.T, yHat) - outsideVectors[outsideWordIdx] # Uy = uo
+
+    gradOutsideVecs = np.dot(np.asmatrix(yHat).T, np.asmatrix(centerWordVec))
+    gradOutsideVecs[outsideWordIdx, :] = (yHat[outsideWordIdx] - 1) * centerWordVec
 
     ### END YOUR CODE
 
@@ -111,6 +121,20 @@ def negSamplingLossAndGradient(
     ### YOUR CODE HERE (~10 Lines)
 
     ### Please use your implementation of sigmoid in here.
+    outsideTerm = sigmoid(np.dot(outsideVectors[outsideWordIdx], centerWordVec))
+    sampledTerm = sigmoid(-np.dot(outsideVectors[negSampleWordIndices], centerWordVec))
+    loss = -(np.log(outsideTerm) + np.sum(np.log(sampledTerm)))
+
+    gradCentreVecOutsideTerm = (outsideTerm - 1) * outsideVectors[outsideWordIdx]
+    gradCentreVecSampledTerm = np.sum(
+        np.multiply(np.reshape(1 - sampledTerm, (-1, 1)), outsideVectors[negSampleWordIndices]), axis=0
+    )
+    gradCenterVec = gradCentreVecOutsideTerm + gradCentreVecSampledTerm
+
+    gradOutsideVecs = np.zeros(outsideVectors.shape)
+    gradOutsideVecs[outsideWordIdx] = (outsideTerm - 1) * centerWordVec
+    for i, negSampleIndex in enumerate(negSampleWordIndices):
+        gradOutsideVecs[negSampleIndex] += (1 - sampledTerm[i]) * centerWordVec
 
     ### END YOUR CODE
 
@@ -157,6 +181,15 @@ def skipgram(currentCenterWord, windowSize, outsideWords, word2Ind,
     gradOutsideVectors = np.zeros(outsideVectors.shape)
 
     ### YOUR CODE HERE (~8 Lines)
+
+    centreWordVec = centerWordVectors[word2Ind[currentCenterWord]]
+    for outsideWord in outsideWords:
+        lossNegSample, gradCentreNegSample, gradOutNegSample = word2vecLossAndGradient(
+            centreWordVec, word2Ind[outsideWord], outsideVectors, dataset
+        )
+        loss += lossNegSample
+        gradCenterVecs[word2Ind[currentCenterWord]] += gradCentreNegSample
+        gradOutsideVectors += gradOutNegSample
 
     ### END YOUR CODE
     
